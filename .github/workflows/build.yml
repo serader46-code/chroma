@@ -1,0 +1,43 @@
+name: Build Chroma APK
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unpack project zip (if uploaded as zip)
+        run: |
+          if [ ! -f settings.gradle.kts ]; then
+            Z=$(ls *.zip | head -n 1)
+            unzip -o -q "$Z" -d _src
+            if [ -f _src/settings.gradle.kts ]; then cp -r _src/. . ; else cp -r _src/*/. . ; fi
+          fi
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+
+      - name: Build APK
+        run: gradle assembleRelease --no-daemon
+
+      - name: Publish APK to Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Chroma (сборка ${{ github.run_number }})
+          body: Скачай app-release.apk ниже и установи на телефон.
+          files: app/build/outputs/apk/release/app-release.apk
+
